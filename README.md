@@ -1,46 +1,28 @@
 # PJJ Learning Notes
 
-个人学习与研究笔记仓库，持续更新。目录组织参考 [Purshow_Notes](https://github.com/Purshow/Purshow_Notes)：按主题建立独立目录，每个目录提供 README 导航；正文保留 Markdown，配套 LaTeX、PDF、参考文献和图表。
+个人学习与研究笔记仓库。仓库按主题组织内容，README 负责说明目录架构与阅读入口；具体论文笔记、源码、PDF 和图片属于对应主题目录。
 
-资料冻结：2026-09-12。
+## Repository architecture
 
-## Contents
+- **embodied-rl-roadmap/**：具身强化学习路线图与开题材料。配套论文图表放在 `embodied-rl-roadmap/assets/`。
+- **video-generation/**：视频生成与世界模型笔记。配套图片放在 `video-generation/assets/`。
+- **codex-claude-code/**：Codex 与 Claude Code 使用指南，合并管理 AI 编程工具相关内容。
+- **notes_archive.zip**：桌面 `note/` 笔记的完整归档；解压后保留原始子目录结构。
 
-| 目录 | 内容 | 入口 |
-|---|---|---|
-| [embodied-rl-roadmap](./embodied-rl-roadmap/) | 具身强化学习路线图：经典控制、sim-to-real、真实世界 RL、离线 RL、Diffusion/VLA 后训练 | [README](./embodied-rl-roadmap/README.md) |
-| [embodied-intelligence](./embodied-intelligence/) | 具身智能调研、VLA、世界模型、WAM 与相关论文 | [README](./embodied-intelligence/README.md) |
-| [video-generation](./video-generation/) | 视频生成模型与世界模型阅读笔记 | [README](./video-generation/README.md) |
-| [guides](./guides/) | Codex、Claude Code、AR 视频生成教程与快捷键 | [README](./guides/README.md) |
-| [notes](./notes/) | 其他学习笔记目录索引 | [README](./notes/README.md) |
+每个主题目录采用相同约定：
 
-## Root files
-
-根目录保留常用阅读副本与论文图表；完整的桌面 note 子目录结构打包在 [notes_archive.zip](./notes_archive.zip) 中。
+`README.md` 介绍主题范围与文件入口；`*.md` 是主要阅读版本；`*.tex`、`*.bib` 是可编辑源文件；`*.pdf` 是阅读/打印版本；`assets/` 专门存放图片、图表和论文视觉资源。
 
 ## Reading order
 
-1. 先读各主题目录的 README，了解范围与文件对应关系。
-2. 阅读 Markdown 正文；需要打印或分享时使用 PDF。
-3. LaTeX、BibTeX 和 figures 用于继续编译、修改和追溯来源。
+1. 从本页选择主题目录。
+2. 阅读该目录 README，再阅读 Markdown 正文。
+3. 需要打印时打开 PDF；需要修改时编辑 Markdown/LaTeX。
 
-## Compile
+## Personal notes page
 
-具身智能与视频生成笔记包含 LaTeX 源文件。建议使用 XeLaTeX 或 latexmk 编译；编译中间文件放在本地 build 目录，不提交生成缓存。
-# 具身智能发展笔记
+简版索引也发布在 [kevinjustin-love.github.io/notes.html](https://kevinjustin-love.github.io/notes.html)，适合快速浏览；本仓库保留完整源文件、参考文献和配套资源。
 
-资料冻结：2026-09-12。
+## Scope
 
-- `source/main.tex`：扩展版主讲义，约 12 页，含 RT-1/RT-2、π 系列、Code-as-Policy、Coding Is All You Need 补充、Cosmos、DreamDojo、DreamZero、VERA、OpenWAM、小米模型、GPT-6 Astra、RoboDojo 与 RoboWM-Bench。
-- `source/technology_stack.tex`：VLA、WAM、Code-as-Policy 技术栈补充讲义。
-- `source/references.bib`：论文与官方项目参考文献。
-- `source/figures/`：从 arXiv 源码/HTML 提取的论文原图。
-- `output/pdf/main.pdf`：扩展版主讲义 PDF。
-- `output/pdf/technology_stack.pdf`：技术栈补充 PDF。
-- `build/`：早期编译中间文件。
-
-主讲义新增“Coding Is All You Need? Why We Need a World Model!”章节，讨论 Cosmos、DreamDojo、DreamZero、VERA 和可执行性评测。网页版本保持简洁，只保留主要路线和论文链接。
-
-
-
-- output/pdf/main_labeled.pdf：论文缩写标签版 PDF（如 [RT-2]、[DreamDojo]、[OpenWAM]）。
+资料冻结：2026-09-12。仓库持续补充新的学习笔记，并保持主题目录与首页索引同步。
