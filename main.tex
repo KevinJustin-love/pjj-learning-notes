@@ -1,0 +1,337 @@
+\documentclass[UTF8,a4paper,11pt]{ctexart}
+\usepackage[a4paper,margin=2.1cm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,longtable,tabularx,array}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc,shapes.geometric,backgrounds}
+\usepackage{xcolor,graphicx,hyperref,enumitem,fancyhdr,tcolorbox,microtype}
+\graphicspath{{figures/}}
+\definecolor{navy}{HTML}{16324F}
+\definecolor{blue}{HTML}{2F6690}
+\definecolor{orange}{HTML}{E07A5F}
+\definecolor{lightblue}{HTML}{EAF3F8}
+\definecolor{lightorange}{HTML}{FCEEEA}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+\pagestyle{fancy}\fancyhf{}\lhead{具身智能发展笔记}\rhead{截至 2026-09-12}\cfoot{\thepage}
+\setlist{nosep,leftmargin=2em}
+
+\newcommand{\model}[1]{\textbf{#1}}
+
+\newcommand{\source}[1]{\href{#1}{[来源]}}
+
+\newtcolorbox{keybox}{colback=lightblue,colframe=blue,boxrule=.5pt,arc=2pt}
+
+\newtcolorbox{caveat}{colback=lightorange,colframe=orange,boxrule=.5pt,arc=2pt}
+
+\title{具身智能发展笔记\\[-2mm]\large 从 RT-2、\texorpdfstring{$\pi$}{pi} 系列到 Code as Policy、世界—动作模型与 GPT-6 Astra}
+\author{研究讲义（资料冻结：2026 年 9 月 12 日）}
+\date{}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+本讲义把具身智能视为三条相互交织的技术路线：视觉语言动作模型（VLA）、代码策略（Code as Policy）以及世界—动作模型（World--Action Model, WAM）。重点讨论动作表示、训练数据、推理闭环和评测口径，并将 RT-2、Physical Intelligence 的 $\pi$ 系列、OpenWAM、小米 Xiaomi-Robotics 系列和近期 GPT-6 Astra 机器人控制实验放入同一分析框架。榜单均记录基准、版本和日期，避免把不可比的结果合并成“全球总榜”。
+\end{abstract}
+
+\tableofcontents
+
+\newpage
+
+\section{阅读地图：具身智能不是一条单线历史}
+具身智能系统要同时解决“看见什么、理解什么、下一步做什么、身体如何执行以及失败后如何恢复”。近年来的突破来自不同层次的组合，而不是单一模型尺寸的线性增长。
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Latex,node distance=8mm and 13mm,
+  box/.style={rounded corners,draw=navy,fill=lightblue,align=center,minimum width=3.3cm,minimum height=9mm},
+  small/.style={rounded corners,draw=blue,fill=white,align=center,minimum width=3.3cm,minimum height=8mm},
+  arrow/.style={->,thick,draw=navy}]
+
+\node[box] (cap) {代码策略~(CaP)};
+
+\node[box,right=of cap] (vla) {视觉语言动作~(RT/\,$\pi$ /Xiaomi)};
+
+\node[box,right=of vla] (wam) {世界--动作模型~(OpenWAM/U0)};
+
+\node[small,below=of cap] (prog) {程序、API、几何约束};
+
+\node[small,below=of vla] (act) {离散 token 或连续 action chunk};
+
+\node[small,below=of wam] (future) {视频未来与动作联合去噪};
+
+\node[small,below=of vla,yshift=-17mm] (loop) {视觉反馈、记忆、在线 RL};
+\draw[arrow] (cap)--(prog);
+\draw[arrow] (vla)--(act);
+\draw[arrow] (wam)--(future);
+\draw[arrow] (prog.south)--(loop.west);
+\draw[arrow] (act.south)--(loop.north);
+\draw[arrow] (future.south)--(loop.east);
+
+\node[draw=orange,dashed,fit=(cap)(vla)(wam)(loop),inner sep=7mm,label={[orange]below:共同目标：跨任务、跨本体、可恢复的物理执行}] {};
+\end{tikzpicture}
+\caption{三条路线的关系。代码策略偏规划和可解释接口，VLA 偏动作生成，WAM 偏预测物理未来；实际系统常将它们叠加。}
+\end{figure}
+
+\section{关键时间线}
+\begin{longtable}{p{2.4cm}p{2.1cm}p{8.7cm}}
+\toprule
+节点 & 时间 & 核心贡献与应读问题\\
+\midrule
+Code as Policies & 2022 & LLM 根据自然语言生成 Python 策略，组合检测器、几何库和控制原语；原始论文早于 RT-2。\\
+RT-1 & 2022 & Transformer 统一视觉、指令和离散动作，证明多任务真实机器人数据可规模化。\\
+RT-2 & 2023 & 将动作编码为文本 token，与互联网 VLM 共同微调；突出语义知识迁移，而非无限物理泛化。\\
+$\pi_0$ & 2024 & 预训练 VLM 加连续动作专家，以 flow matching 生成 action chunk。\\
+$\pi_{0}$-FAST / $\pi_{0.5}$ & 2025 & 分别推进高效动作 token 化和开放环境泛化。\\
+$\pi^*_{0.6}$ & 2025 & RECAP 将示范、自主执行和人类纠正纳入在线强化学习，提高可靠性与吞吐量。\\
+$\pi_{0.7}$ & 2026-04 & 语言、行为元数据、控制模式和视觉子目标联合提示，强调组合泛化。\\
+CaP-X / ASPIRE / PhysCaP & 2026 & 代码策略加入测试时反馈、技能库、进化搜索和主动物理探测。\\
+OpenWAM-$\alpha$ & 2026-09 & 模块化世界--动作预训练，联合去噪视频未来和动作流。\\
+\bottomrule
+\end{longtable}
+
+\section{RT-1 与 RT-2：VLA 范式的形成}
+RT-1 将相机图像、语言指令和离散动作序列送入 Transformer。它的主要意义是把“每个任务一个控制器”转成共享策略，但仍明显依赖训练任务、机器人形态和数据分布。
+
+RT-2 的关键改变是把机器人动作序列离散化为与文本相似的 token，并在视觉语言任务和机器人轨迹上共同训练。其抽象流程为
+\[
+ (I,\,L)\xrightarrow{\text{VLM}}(a_1,a_2,\ldots,a_T),\qquad a_t\in\mathcal{V}_{\rm action}\subset\mathcal{V}_{\rm token}.
+\]
+这让模型能够把“把物体放到能喝水的位置”等互联网知识迁移到动作选择，但动作 token 的时间分辨率、闭环频率和本体差异仍是瓶颈。\href{https://arxiv.org/abs/2212.06817}{[RT-1]}\;\href{https://arxiv.org/abs/2307.15818}{[RT-2]}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Latex,node distance=9mm and 10mm,
+  box/.style={draw=navy,rounded corners,fill=lightblue,align=center,minimum width=2.8cm,minimum height=10mm},
+  token/.style={draw=blue,fill=white,minimum width=1.4cm,minimum height=7mm},
+  arrow/.style={->,thick,draw=navy}]
+
+\node[box] (img) {图像 patch}; 
+\node[box,below=of img] (txt) {语言 token};
+
+\node[box,right=18mm of img,yshift=-7mm] (tr) {共享 Transformer};
+
+\node[token,right=18mm of tr] (a1) {$a_1$}; 
+\node[token,right=of a1] (a2) {$a_2$}; 
+\node[token,right=of a2] (a3) {$\cdots$};
+\draw[arrow] (img)--(tr);\draw[arrow] (txt)--(tr);\draw[arrow] (tr)--(a1);\draw[arrow] (a1)--(a2);\draw[arrow] (a2)--(a3);
+
+\node[below=of a2,align=center] {离散动作 token~(位移、旋转、夹爪等)};
+\end{tikzpicture}
+\caption{RT-2 的概念性动作 token 流程。}
+\end{figure}
+
+\section{$\pi$ 系列：从通用策略到可操纵的物理智能}
+\subsection{$\pi_0$ 与连续动作专家}
+与 RT-2 的离散自回归动作不同，$\pi_0$ 使用预训练 VLM 提供语义和视觉表征，再接入动作专家，通过 flow matching 直接生成连续 action chunk。抽象地写为
+\[
+ z_0\sim\mathcal{N}(0,I),\qquad \frac{d z_t}{dt}=v_\theta(z_t\mid I,L,h),
+\]
+其中 $h$ 为历史观测，积分后的 $z_1$ 解码为连续末端位姿或关节动作。这种表示更适合高频控制，却需要统一不同机器人本体的动作空间。\href{https://www.pi.website/blog/pi0}{[pi0]}
+
+\subsection{版本演进与配套技术}
+\begin{itemize}
+\item $\pi_0$-FAST 用高效动作 token 化降低自回归成本，形成离散效率与连续精度之间的折中。
+\item $\pi_{0.5}$ 联合机器人轨迹、人类视频和开放环境数据，关注家庭场景中的 OOD 泛化。
+\item $\pi^*_{0.6}$ 以 RECAP 连接示范、机器人自主试错和人类在线纠正，目标从“能完成”转向“稳定完成”。
+\item $\pi_{0.7}$ 将语言指令、速度/质量元数据、控制模式和视觉子目标作为可操纵条件，展示技能组合和跨本体迁移；这些结果仍主要是研究演示，不能理解为任意新任务的即插即用。
+\end{itemize}
+
+\section{Code as Policy：从程序生成到闭环自改写}
+Code as Policies 让模型生成调用感知和控制 API 的程序，而非直接生成全部电机信号。程序可以表达条件、循环、几何计算和层级函数调用：
+\[
+ \pi_{\rm code}: (o_t,\,g)\mapsto \texttt{program}(o_t,g)\mapsto u_t.
+\]
+VoxPoser 和 ReKep 将这种思想分别扩展到 3D value map 和关系关键点。2026 年的 CaP-X、ASPIRE、PhysCaP 进一步加入多轮执行反馈、视觉差分、技能库、进化搜索和主动探测。\href{https://code-as-policies.github.io/}{[Code as Policies]}\;\href{https://arxiv.org/abs/2603.22435}{[CaP-X]}\;\href{https://arxiv.org/abs/2607.00272}{[ASPIRE]}\;\href{https://arxiv.org/abs/2608.21031}{[PhysCaP]}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Latex,node distance=9mm and 13mm,
+  box/.style={draw=navy,rounded corners,fill=lightblue,align=center,minimum width=2.8cm,minimum height=10mm},
+  arrow/.style={->,thick,draw=navy}]
+
+\node[box] (goal) {语言目标};
+\node[box,right=of goal] (llm) {Astra / LLM\\\\代码生成};
+\node[box,right=of llm] (api) {感知与控制 API};
+\node[box,right=of api] (robot) {机器人执行};
+
+\node[box,below=of robot] (obs) {视觉、本体状态、\\\\成功/失败信号};
+\draw[arrow] (goal)--(llm)--(api)--(robot);\draw[arrow] (robot)--(obs);\draw[arrow] (obs.west)-|(llm.south);
+\end{tikzpicture}
+\caption{代码策略的闭环：LLM 负责高层程序，IK、伺服器和安全层负责实时执行。}
+\end{figure}
+
+\begin{caveat}
+代码策略的优势是可检查、可组合和便于跨本体适配；风险是 API 误用、长时任务错误累积、低层接触控制不足以及验证成本。真实部署必须限制动作接口、加入碰撞检查和人工急停。
+\end{caveat}
+
+\subsection{Coding Is All You Need? Why We Need a World Model!}
+代码策略擅长把语言目标编译成可调用机器人 API 的程序，但程序本身不会预测接触、遮挡和物体形变。视频世界模型提供稠密的时序监督，可以在执行前预览动作后果，并为代码策略提供候选结果、可执行性评分和失败前瞻。
+
+代码策略与世界模型并非互斥：代码负责目标分解、工具调用和约束表达；世界模型负责预测物理未来；低层控制器负责实时、稳定和安全执行。后文的 Cosmos、DreamDojo、DreamZero、VERA 与 RoboWM-Bench 展示了这种互补关系。
+
+\section{视频生成模型与 WAM：Cosmos 到可执行性评测}
+\subsection{为什么视频预测能补足动作策略}
+Code-as-Policy 解决的是“如何把语言目标编译成可执行程序”。它依赖一个已存在的机器人软件栈：检测、抓取、IK、轨迹规划和安全检查。问题在于，程序本身并不提供物理未来的预测；当物体遮挡、接触或柔性形变发生时，策略需要重新观察并修复。
+
+视频生成模型提供了另一种监督来源。与稀疏的成功/失败标签相比，视频帧提供稠密的时序变化。世界模型的基本问题可以写成
+\[
+ p(o_{t+1:t+H}\mid o_{\leq t},a_{t:t+H},c),
+\]
+其中 $o$ 是观测，$a$ 是动作，$c$ 是语言或场景条件。若模型还能输出或反推出动作，就得到
+\[
+ p(o_{t+1:t+H},a_{t:t+H}\mid o_{\leq t},c,q_t),
+\]
+这正是 WAM 与视频规划器 + IDM 路线的共同目标。
+
+\subsection{Cosmos：把世界模型做成物理 AI 数据平台}
+NVIDIA Cosmos WFM 平台把视频策划、视频 tokenizer、预训练世界模型和 post-training 组织成一套数据引擎。Cosmos 的用途包括生成合成训练数据、评估候选策略、模型预测控制（MPC）和 sim-to-real 场景变换；它并不等于一个直接控制所有机器人的策略。Cosmos-Predict2.5 用 flow-based DiT 统一 Text2World、Image2World 和 Video2World，并通过 Cosmos-Reason1 和强化学习改善物理一致性。Cosmos 3 进一步把文本、图像、视频、音频和动作投影到共享 token 空间，支持 forward dynamics、inverse dynamics 与 policy 三种模式。\href{https://arxiv.org/abs/2501.03575}{[Cosmos]}\;\href{https://arxiv.org/abs/2511.00062}{[Cosmos-Predict2.5]}\;\href{https://arxiv.org/abs/2606.02800}{[Cosmos 3]}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.94\textwidth,height=0.52\textheight,keepaspectratio]{cosmos-architecture.png}
+\caption{Cosmos 论文原图：视频生成骨干、tokenizer 和物理 AI 数据流程。图源：NVIDIA Cosmos WFM 论文（arXiv:2501.03575）。}
+\end{figure}
+
+\subsection{DreamDojo：用人类视频学习连续 latent action}
+DreamDojo 针对机器人动作标签稀缺的问题，使用约 44,000 小时第一视角人类视频，并从连续帧中学习统一的 latent action 作为代理动作。模型先用大规模视频学习交互和物体变化，再用少量目标机器人数据进行动作可控性 post-training；蒸馏后的 causal student 报告约 10.81 FPS，可用于在线遥操作、策略评估和模型规划。它的关键假设是：人类视频虽没有机器人关节标签，却包含可迁移的接触、运动和结果信息。\href{https://arxiv.org/abs/2602.06949}{[DreamDojo]}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.94\textwidth,height=0.52\textheight,keepaspectratio]{dreamdojo-overview.png}
+\caption{DreamDojo 论文原图：从大规模人类视频到机器人世界模型。图源：Gao et al., arXiv:2602.06949。}
+\end{figure}
+
+\subsection{DreamZero 与 VERA：世界模型如何接上动作}
+DreamZero 采用 14B 自回归视频扩散骨干，联合预测未来视频和动作，并在每个 action chunk 后用真实观测更新 KV cache，以减少长期 rollout 漂移。论文报告在新任务和新环境上相对 VLA 的明显提升，但推理成本和视频—动作对齐仍是瓶颈。\href{https://arxiv.org/abs/2602.15922}{[DreamZero]}
+
+VERA 则显式拆开两个模块：冻结的 action-free 视频模型负责生成视觉未来，基于机器人 Jacobian 的 inverse dynamics model（IDM）把视觉运动翻译为本体动作。这样可以替换 IDM 适配不同机器人，但视频规划错误无法由动作翻译器完全修复。\href{https://arxiv.org/abs/2605.27817}{[VERA]}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.94\textwidth,height=0.48\textheight,keepaspectratio]{dreamzero-model.png}
+\caption{DreamZero 论文原图：联合视频—动作世界模型和闭环观测回写。图源：DreamZero，arXiv:2602.15922。}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.94\textwidth,height=0.48\textheight,keepaspectratio]{vera-results.png}
+\caption{VERA 论文原图：视频规划器与 Jacobian-IDM 的跨本体策略结果。图源：Li et al., arXiv:2605.27817。}
+\end{figure}
+
+\section{WAM 的系统化与规模化：OpenWAM}
+OpenWAM 将视频生成先验和可执行控制放入同一预训练框架。OpenWAM-Infra 把视觉编码器、视频骨干、动作骨干、注意力掩码、去噪和评测拆成可组合模块；OpenWAM-Study 用控制实验研究世界与动作信息如何交互；OpenWAM-$\alpha$ 再将所得原则规模化。
+
+其核心结构可表示为
+\[
+ (x_0,\,\epsilon^x_t,\,\epsilon^a_t,\,L)
+ \xrightarrow{\text{joint attention + mutual mask}}
+ (\hat{x}_{1:T},\,\hat{a}_{1:K}),
+\]
+即视频流预测未来帧，ActionDiT 预测动作 chunk，两者在训练和推理时同步去噪。官方页面报告约 6,400 小时、5.18 亿帧、80 维统一动作空间，并覆盖八个模拟基准和三个真实机器人平台。\href{https://openwam-official.github.io/}{[OpenWAM Project]}\;\href{https://arxiv.org/abs/2609.07398}{[OpenWAM]}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Latex,node distance=9mm and 17mm,
+  stream/.style={draw=navy,rounded corners,fill=lightblue,align=center,minimum width=3.4cm,minimum height=11mm},
+  arrow/.style={->,thick,draw=navy}]
+
+\node[stream] (video) {Wan 视频 DiT\\未来帧 latent};
+
+\node[stream,below=of video] (action) {ActionDiT\\动作 chunk};
+
+\node[stream,right=25mm of video,yshift=-7mm] (joint) {联合注意力\\互相可见 + 同步去噪};
+
+\node[stream,right=of joint] (out) {视频未来\\+ 可执行动作};
+
+\node[stream,below=of joint] (lang) {冻结 umT5\\语言条件};
+\draw[arrow] (video)--(joint);\draw[arrow] (action)--(joint);\draw[arrow] (lang)--(joint);\draw[arrow] (joint)--(out);
+\end{tikzpicture}
+\caption{OpenWAM-$\alpha$ 的双流世界--动作建模示意。}
+\end{figure}
+
+\section{评测基准：RoboDojo 与 RoboWM-Bench}
+RoboDojo 提供统一的仿真—真机评测：42 个仿真任务覆盖泛化、记忆、精度、长时域和开放任务五个维度，另有 18 个真实机器人任务，并通过 XPolicyLab 统一接入不同策略。它适合比较 VLA、WAM 和代码策略在同一协议下的综合表现。\href{https://arxiv.org/abs/2607.04434}{[RoboDojo]}
+
+RoboWM-Bench 则专门检验视频世界模型的具身可执行性：把生成的人手或机器人视频通过 retargeting/IDM 转成动作，在 real-to-sim 环境中执行，再同时报告逐步可执行性和任务成功率。其核心结论是视觉逼真不等于物理可执行；空间推理、接触预测、非物理形变和长时域漂移都会导致失败。\href{https://arxiv.org/abs/2604.19092}{[RoboWM-Bench]}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[>=Latex,node distance=8mm and 12mm,box/.style={draw=navy,rounded corners,fill=lightblue,align=center,minimum width=3.1cm,minimum height=10mm},arr/.style={->,thick,draw=navy}]
+
+\node[box](gen){视频世界模型\\生成未来};
+\node[box,right=of gen](ret){Retargeting / IDM\\翻译成动作};
+\node[box,right=of ret](sim){RoboDojo / RoboWM-Bench\\仿真执行};
+\node[box,below=of sim](score){可执行性、成功率、\\接触与长时域误差};\draw[arr](gen)--(ret)--(sim)--(score);\draw[arr](score.west) -| (gen.south);
+\end{tikzpicture}
+\caption{视频世界模型的评测闭环：预测质量必须经过动作翻译和执行验证。}
+\end{figure}
+
+\section{工业界实施路径：从具身理解到可部署系统}
+工业界的公开路线不是单一模型竞赛，而是围绕三类工程目标展开：先用具身 VLM 获得空间、时间和可供性理解，再接入 VLA 动作专家；用视频世界模型生成和评估数据；最后把大规模真实轨迹、RL 后训练、边缘推理和本体适配整合为可部署系统。
+
+\begin{longtable}{p{3.1cm}p{2.5cm}p{7.3cm}}
+\toprule
+模型/团队 & 实施路线 & 技术重点、数据和证据边界\\\midrule
+HY-Embodied-0.5 / HyVLA-0.5（腾讯混元） & 具身 VLM $\rightarrow$ VLA & MoT 与视觉 latent token；2B 激活模型面向边缘部署，32B 变体面向复杂推理；HyVLA-0.5 把数据采集、继续预训练、SFT、RL 和真机部署放进完整栈。\\
+Qwen-VLA（阿里通义） & 统一 VLA & Qwen 视觉语言骨干 + DiT 动作解码器；联合机器人轨迹、人类第一视角视频、仿真和导航数据；同时覆盖操作、导航和轨迹预测，强调 embodiment-aware prompt。\\
+GR-2（字节跳动） & 视频先验 + 机器人控制 & 先用约 3,800 万互联网视频片段预训练视觉动态，再联合机器人视频与动作微调；论文报告 100+ 任务平均成功率 97.7\%，应按其评测协议解读。\\
+Xiaomi-Robotics-0（小米） & 实时 VLA & VLM 知识保留、flow matching 动作生成、异步执行和动作块衔接；定位为直接输出机器人动作的基础模型。\\
+Xiaomi-Robotics-U0（小米） & 世界模型/数据引擎 & 38B 多模态生成模型，统一场景生成、具身迁移和视频生成；可为 VLA 提供多视角、可控和 OOD 数据，WorldArena 名次必须绑定具体版本。\\
+Xiaomi-Robotics-1（小米） & 大规模轨迹基座 & 以超过十万小时 UMI 轨迹预训练，再做本体和指令对齐；RoboCasa365 榜单 2026-09-10 为 57.4，不能外推成所有赛道第一。\\
+Embodied-R1.5（开源研究路线） & 具身推理 + 自纠错 & Planner--Grounder--Corrector 闭环统一规划、指向、纠错和 VLA 微调；体现推理模型与少量动作数据结合的方向。\\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{4.2cm}p{3.1cm}p{5.8cm}}
+\toprule
+基准与日期 & 榜首或代表结果 & 解释\\
+\midrule
+RoboCasa365，2026-09-10 & Xiaomi-Robotics-1，57.4 & 多任务基准第一，不等于所有具身任务第一。\\
+RoboDojo & DM0.5，24.90；Xiaomi-Robotics-1 约 20.07 & 需区分 score 与成功率，硬件和协议会影响结果。\\
+WorldArena 2.0 Track 1 & FlowWAM-FiveAges，67.62；Xiaomi-Robotics-U0，67.39 & 视频质量赛道，不能与 RL 环境赛道横比。\\
+\bottomrule
+\end{longtable}
+\href{https://arxiv.org/abs/2604.07430}{[HY-Embodied]}\;\href{https://arxiv.org/abs/2606.14409}{[HyVLA-0.5]}\;\href{https://arxiv.org/abs/2605.30280}{[Qwen-VLA]}\;\href{https://arxiv.org/abs/2410.06158}{[GR-2]}\;\href{https://arxiv.org/abs/2602.12684}{[Xiaomi-R0]}\;\href{https://arxiv.org/abs/2607.11643}{[Xiaomi-U0]}\;\href{https://arxiv.org/abs/2607.15330}{[Xiaomi-R1]}\;\href{https://arxiv.org/abs/2606.11324}{[Embodied-R1.5]}\;\href{https://robocasa.ai/leaderboard.html}{[RoboCasa365]}\;\href{https://robodojo-benchmark.com/}{[RoboDojo Board]}\;\href{https://huggingface.co/spaces/WorldArena/WorldArena2.0/blob/main/RESULTS_README.md}{[WorldArena 2.0]}
+\section{GPT-6 Astra：通用模型进入机器人控制环}
+OpenAI 官方资料将 GPT-6 Astra 定位为通用推理、代码和计算机使用模型，而非公开发布的专门 VLA。\href{https://openai.com/index/gpt-6-astra/}{[Astra]} 近期第三方实验显示，若给它机器人 API、相机观测和状态反馈，它可以承担高层控制器角色。
+
+Robocurve 在 2026-09-04 的同一套 Inspect Robots harness 上测试双臂 I2RT YAM 机械臂。Astra 在“方块放入碗”任务完成 19/20 次（95\%），平均每次 2.5 分钟、约 0.94 美元；在“拼图插入凹槽”任务仅完成 2/20 次（10\%）。输入是三路相机和本体状态，输出为每臂绝对末端位姿，由 IK 转为关节角。\href{https://openai.robocurve.org/gpt-6-astra/}{[Astra Eval]}
+
+\begin{keybox}
+Astra 案例的正确抽象是
+\[
+ \text{多模态观测} \rightarrow \text{Astra 推理/代码} \rightarrow \text{末端位姿 API} \rightarrow \text{IK + 低层伺服}.
+\]
+它证明通用模型可以在合适的接口和反馈下展现很强的物理任务迁移，但不能据此声称它已经取代端到端 VLA。精细插入、接触力、实时性和跨硬件复现仍是明显短板。
+\end{keybox}
+
+X 上可检索到 OpenAI 团队成员转发的 physical ICL 和机械臂演示；小红书上的公开页面目前难以稳定抓取，中文媒体确认相关视频正在传播。社交视频作为定性材料收录，只有包含任务协议、失败率、硬件、提示词和控制频率时才进入定量表格。\href{https://www.sotwe.com/npew?lang=en}{[Astra X demos]}\;\href{https://www.yicai.com/news/103359498.html}{[一财报道]}
+
+\section{比较框架：如何判断“更强”}
+\begin{longtable}{p{3.1cm}p{3.2cm}p{3.2cm}p{3.2cm}}
+\toprule
+维度 & 代码策略 & VLA & WAM\\
+\midrule
+动作输出 & 程序/API/位姿 & token 或连续 chunk & 动作与未来视频联合生成\\
+数据重点 & 语言、技能库、执行轨迹 & 机器人示范和 VLM 预训练 & 视频先验加机器人/人类数据\\
+可解释性 & 高，能检查程序 & 中，需看轨迹与注意力 & 中，预测空间和动作耦合\\
+实时性 & 依赖低层控制器 & 取决于解码器 & 联合去噪成本较高\\
+长时任务 & 依赖记忆和恢复 & 依赖历史窗口与分层策略 & 依赖世界模型准确性\\
+主要风险 & API 错误和安全 & 分布外动作失败 & 视频逼真但动作不可执行\\
+\bottomrule
+\end{longtable}
+
+\section{结论与复习清单}
+\begin{enumerate}
+\item RT-2 的突破是语义知识进入动作 token；$\pi_0$ 的突破是连续动作专家和 flow matching；OpenWAM 的突破是把未来视觉和动作作为耦合对象；Astra 的突破案例是通用模型借助接口和反馈完成高层控制。
+\item 评测必须同时报告成功率、阶段得分、耗时、成本、硬件、本体、是否微调和失败类型。
+\item “榜首”只能在明确 benchmark、版本和日期后使用；RoboCasa365、RoboDojo、WorldArena 的数字不能合并。
+\item 研究阅读顺序：RT-2 → $\pi_0$ / $\pi_{0.5}$ / $\pi^*_{0.6}$ / $\pi_{0.7}$ → CaP → CaP-X / ASPIRE / PhysCaP → OpenWAM → Astra Robocurve。
+\end{enumerate}
+
+
+\nocite{*}
+\bibliographystyle{unsrt}
+\bibliography{references}
+\end{document}
+
+
