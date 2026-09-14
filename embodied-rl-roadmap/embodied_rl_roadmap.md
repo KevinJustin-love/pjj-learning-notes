@@ -42,7 +42,7 @@ The Ingredients of Real-World Robotic Reinforcement Learning 将问题拆成奖�
 
 真实世界 RL 由此从单一算法问题转为完整系统问题。自动重置、并行机器人、失败恢复和数据过滤与优化器同样重要。很多论文的性能提升来自整个数据闭环，而不是某一个损失函数单独带来的提升；阅读结果时要把“算法贡献”和“系统工程贡献”分开。
 
-![真实世界机器人 RL 的原论文素材，来自 Ingredients of Real-World Robotic RL 的源码图](figures/ingredients-real-world-rl_asset_1.png)
+![真实世界机器人 RL 的原论文素材，来自 Ingredients of Real-World Robotic RL 的源码图](assets/ingredients-real-world-rl_asset_1.png)
 
 ### 2.4 离线 RL 与示范学习：先从已有经验中学习
 
@@ -56,7 +56,7 @@ Diffusion Policy 将动作序列作为条件生成对象，使用视觉观测和
 
 例如，同一个物体可以从左边抓，也可以从右边抓。普通回归模型容易把两条轨迹平均成一条不可执行的中间轨迹；扩散策略可以把它们作为两个模式保留下来。代价是执行时要做多步采样，而且每次生成的动作仍需放回真实闭环中检查。
 
-![Diffusion Policy 原论文 teaser，来自论文源码](figures/rendered/diffusion_policy_teaser.png)
+![Diffusion Policy 原论文 teaser，来自论文源码](assets/rendered/diffusion_policy_teaser.png)
 
 Diffusion Policy 首先是策略表示和监督/模仿学习方法，不自动等于 RL。要把它用于 RL，需要定义任务奖励、探索机制、动作序列信用分配和安全约束。Diffusion Policies as an Expressive Policy Class for Offline Reinforcement Learning 进一步说明扩散分布可以作为离线 RL 的策略类，但仍受数据覆盖和价值外推影响。
 
@@ -76,9 +76,9 @@ $$A^{(i)}=\frac{R^{(i)}-\operatorname{mean}(R)}{\operatorname{std}(R)+\epsilon}.
 
 许多 flow-matching 采样器由确定性 ODE 描述。确定性路径没有传统 policy gradient 所需的随机探索，也不直接给出每一步的动作概率。Flow-GRPO 的关键步骤是把 ODE 转换为保持边际分布的 SDE，使每一步拥有可计算的随机转移；随后对同一 prompt 的多条生成轨迹计算组相对优势，并把最终图像奖励回传到去噪过程。
 
-![Flow-GRPO 原论文方法图，来自论文源码渲染](figures/rendered/flow_grpo_method.png)
+![Flow-GRPO 原论文方法图，来自论文源码渲染](assets/rendered/flow_grpo_method.png)
 
-![Flow-GRPO 原论文 teaser，来自论文源码渲染](figures/rendered/flow_grpo_teaser.png)
+![Flow-GRPO 原论文 teaser，来自论文源码渲染](assets/rendered/flow_grpo_teaser.png)
 
 Flow-GRPO 的优点是首次把在线策略梯度式 RL 连接到 flow-matching 生成模型；代价是仍要处理反向采样轨迹、概率比、solver 约束和逐步信用分配。论文报告其在文本到图像任务上改善组合关系、文字渲染和偏好对齐，但这些指标属于图像生成证据，不是具身控制证据。
 
@@ -90,7 +90,7 @@ Flow-GRPO 的优点是首次把在线策略梯度式 RL 连接到 flow-matching 
 
 DiffusionNFT（Diffusion Negative-aware Fine-Tuning）提出在 forward diffusion / flow-matching 过程中直接做在线 RL。它把生成结果按奖励划分为正样本和负样本，用二者的预测误差构造隐式的策略改进方向，并把 RL 信号整合进类似监督学习的 velocity objective。
 
-![DiffusionNFT 方法图，来自论文源码渲染](figures/rendered/diffusionnft_method.png)
+![DiffusionNFT 方法图，来自论文源码渲染](assets/rendered/diffusionnft_method.png)
 
 与 Flow-GRPO 的对照可以概括为：
 
@@ -103,7 +103,7 @@ DiffusionNFT（Diffusion Negative-aware Fine-Tuning）提出在 forward diffusio
 | CFG | 需要处理 CFG/参考策略 | 论文强调 CFG-free 设定 |
 | 直观理解 | 对轨迹做 policy gradient | 用奖励排序改变 velocity field |
 
-![DiffusionNFT 性能对比图，来自论文源码渲染](figures/rendered/diffusionnft_performance.png)
+![DiffusionNFT 性能对比图，来自论文源码渲染](assets/rendered/diffusionnft_performance.png)
 
 论文报告在 SD3.5-Medium 上相对 Flow-GRPO 的效率优势，例如 GenEval 从 0.24 提升到 0.98 的对比；这些数字应理解为图像生成实验中的 paper fact，不能直接外推到机器人成功率。
 
@@ -134,9 +134,9 @@ OpenVLA 等开放 VLA 模型把视觉、语言和动作统一到一个策略中�
 
 DexFlyWheel 将灵巧操作的数据采集、失败分析和策略改进组织成可循环的数据框架；RL-100 则将真实机器人数据飞轮、离线 RL 和在线提升组合起来，代表“先利用人类先验，再用真实反馈超越示范”的路线。
 
-![DexFlyWheel 原论文方法图，来自论文源码渲染](figures/rendered/dexflywheel_method.png)
+![DexFlyWheel 原论文方法图，来自论文源码渲染](assets/rendered/dexflywheel_method.png)
 
-![X-DiffVLA 原论文框架图，来自论文源码渲染](figures/rendered/x_diffvla_framework.png)
+![X-DiffVLA 原论文框架图，来自论文源码渲染](assets/rendered/x_diffvla_framework.png)
 
 近期工作开始把 flow/diffusion action head 与跨机器人 embodiment 迁移结合起来，但仍要区分“动作头的表达能力”“VLA 的语义泛化”和“真实机器人 RL 的闭环适应”。
 
@@ -172,4 +172,5 @@ DexFlyWheel 将灵巧操作的数据采集、失败分析和策略改进组织�
 ## 参考链接
 
 [Flow-GRPO 论文](https://arxiv.org/abs/2505.05470) · [代码](https://github.com/yifan123/flow_grpo)；[DiffusionNFT 论文](https://arxiv.org/abs/2509.16117) · [代码](https://github.com/NVlabs/DiffusionNFT)；[Diffusion Policy](https://arxiv.org/abs/2303.04137)；[RL-100](https://arxiv.org/abs/2510.14830)；[DexFlyWheel](https://arxiv.org/abs/2509.23829)；[OpenVLA](https://arxiv.org/abs/2406.09246)；[X-DiffVLA](https://arxiv.org/abs/2605.25044)；[Diffusion Models for RL Survey](https://arxiv.org/abs/2311.01223)。
+
 

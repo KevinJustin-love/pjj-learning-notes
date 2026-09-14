@@ -1,0 +1,353 @@
+# Codex 使用指南（截至 2026-09-12）
+
+> 面向 ChatGPT 桌面端 Codex 与 Codex CLI。命令和功能会随版本、操作系统、账号权限及当前工作区变化；输入 `/` 查看当前实际可用列表。
+
+## 1. Codex 是什么
+
+Codex 可以读取项目文件、修改代码、运行测试和终端命令。它通常在受沙箱保护的工作区内执行：沙箱限制文件和网络范围，审批策略决定什么时候必须停下来请求确认。
+
+官方资料：[Codex CLI](https://learn.chatgpt.com/docs/codex/cli)、[桌面端斜杠命令](https://learn.chatgpt.com/docs/reference/slash-commands)、[CLI 命令参考](https://learn.chatgpt.com/docs/developer-commands?surface=cli)、[沙箱](https://learn.chatgpt.com/docs/sandboxing)。
+
+## 2. 三种输入方式
+
+### 普通自然语言
+
+直接描述目标、范围、约束和验收标准：
+
+```text
+请先阅读 README 和现有测试，找出登录超时的原因；只修改 auth/ 目录，完成后运行相关测试并汇报改动。
+```
+
+### `/` 斜杠命令
+
+在桌面端或 CLI 输入框输入 `/`，再输入关键词过滤并选择命令。它们是控制当前会话的快捷操作；可用项随环境和权限变化。输入 `$` 可以显式调用 skill，自定义 prompt 以 `/prompts:<name>` 出现。
+
+### `!` 终端命令（CLI）
+
+在支持该语法的 Codex CLI 交互界面中，让一行以 `!` 开头：
+
+```text
+! git status
+! npm test
+! python -m pytest tests/test_api.py -q
+```
+
+该命令继承当前审批和沙箱设置，不能绕过权限。桌面应用使用独立的集成终端（Windows 可按 Ctrl + 反引号键 或点击终端图标），不必在普通 PowerShell 中输入 `!git status`。若 CLI 不识别 `!`，请直接使用集成终端或让 Codex 执行。
+
+## 3. 桌面端常用斜杠命令
+
+| 命令 | 作用 |
+|---|---|
+| `/plan` | 开启或切换计划模式，先拆解多步骤任务 |
+| `/goal` | 设置持续目标；建议先 `/plan` 再固化目标 |
+| `/fast` | 开关可用的 Fast 服务层；模型不支持时不会显示 |
+| `/model`、`/reasoning` | 选择模型和推理强度 |
+| `/review` | 审查未提交改动或基准分支差异 |
+| `/status` | 查看会话 ID、上下文使用量和速率限制 |
+| `/compact` | 压缩当前上下文，释放 token |
+| `/init` | 生成项目 `AGENTS.md` 脚手架 |
+| `/local`、`/cloud` | 选择本地或云端执行（可用时） |
+| `/cloud-environment` | 选择云端环境 |
+| `/worktree` | 在新的 Git worktree 中工作 |
+| `/fork` | 复制本地会话或 worktree |
+| `/side` | 开启临时侧聊，不打断主会话 |
+| `/task`、`/project` | 创建无项目会话或选择项目 |
+| `/mcp` | 查看 MCP 服务器状态 |
+| `/ide-context` | 开关共享 IDE 上下文 |
+| `/memories` | 配置记忆功能（可用时） |
+| `/personality` | 选择回答风格（模型支持时） |
+| `/feedback` | 提交反馈并可附带日志 |
+| `/approve` | 自动审查拒绝后批准一次重试 |
+| `/pet` | 唤醒或收起桌面宠物 |
+
+`/goal` 可设置持久目标；目标运行时仍可发送后续消息。进度栏可暂停、恢复、编辑或清除。CLI 中也可用 `/goal edit`、`pause`、`resume`、`clear`（以当前菜单为准）。
+
+## 4. CLI 补充斜杠命令
+
+| 命令 | 作用 |
+|---|---|
+| `/permissions` | 调整权限预设（只读、工作区可写、按请求审批等） |
+| `/ide` | 把 IDE 打开的文件和选区带入下一轮 |
+| `/agent`、`/subagents` | 查看或切换子代理线程 |
+| `/apps`、`/plugins`、`/hooks` | 管理连接器、插件和 hooks |
+| `/diff` | 查看 Git diff（含未跟踪文件） |
+| `/copy` | 复制最近完整输出（也可 `Ctrl+O`） |
+| `/rename` | 重命名会话 |
+| `/archive`、`/delete` | 归档或永久删除会话 |
+| `/new`、`/clear` | 新建聊天；`/clear` 同时清终端显示 |
+| `/resume`、`/fork` | 恢复或分叉会话 |
+| `/exit` | 退出 CLI |
+| `/vim`、`/keymap` | Vim 输入模式和快捷键绑定 |
+| `/mention` | 附加指定文件 |
+| `/usage` | 查看 daily/weekly/cumulative 用量 |
+| `/theme`、`/title`、`/statusline` | 调整界面显示 |
+
+任务运行时输入斜杠命令并按 `Tab`，会排队到下一轮；按 `Enter` 会把指令注入当前轮。
+
+## 5. CLI 启动与自动化
+
+```bash
+cd path/to/repo
+codex
+codex -C path/to/repo
+codex --model gpt-5.6-terra --sandbox workspace-write
+codex --image error.png --search "根据截图修复构建错误"
+```
+
+首次运行会要求登录。常用子命令：
+
+| 命令 | 作用 |
+|---|---|
+| `codex` | 启动交互式终端界面 |
+| `codex exec`（`codex e`） | 非交互执行，适合脚本和 CI |
+| `codex review` | 只读审查未提交改动、基准分支、提交或自定义标准 |
+| `codex resume` | 按 ID 或最近会话继续（`--last`、`--all`） |
+| `codex fork` | 从旧会话分叉 |
+| `codex apply`（`codex a`） | 应用云任务生成的 diff |
+| `codex login` / `logout` | 登录 / 删除凭据 |
+| `codex mcp` | 管理 MCP 服务器 |
+| `codex plugin` | 管理插件和插件市场 |
+| `codex completion` | 生成 Bash、Zsh、Fish、PowerShell 补全 |
+| `codex doctor` | 生成诊断报告 |
+| `codex features` | 查看或切换功能开关 |
+| `codex sandbox` | 在 Codex 沙箱中运行命令 |
+| `codex archive` / `unarchive` / `delete` | 管理保存的会话 |
+| `codex update` | 检查 CLI 更新 |
+
+示例：
+
+```bash
+codex exec --json --output-last-message final.txt "运行测试并修复失败项"
+cat task.md | codex exec -
+codex review --uncommitted
+codex review --base main
+codex resume --last
+codex fork --last
+```
+
+## 6. 重要全局参数
+
+| 参数 | 说明 |
+|---|---|
+| `-C, --cd PATH` | 设置工作目录 |
+| `-m, --model MODEL` | 覆盖模型 |
+| `-s, --sandbox read-only\|workspace-write\|danger-full-access` | 选择沙箱策略 |
+| `-a, --ask-for-approval on-request\|never` | 设置审批时机 |
+| `--add-dir PATH` | 增加额外可写目录，可重复 |
+| `-c, --config key=value` | 临时覆盖配置，优先于配置文件 |
+| `--search` | 开启实时网页搜索 |
+| `-p, --profile NAME` | 叠加 `$CODEX_HOME/NAME.config.toml` |
+| `-i, --image PATH` | 给初始提示附图 |
+| `--oss` / `--local-provider` | 使用 LM Studio 或 Ollama 等本地模型 |
+| `--strict-config` | 遇到未知配置字段时报错 |
+| `--yolo` | 绕过审批和沙箱，仅适用于外部加固的隔离环境 |
+
+常用本地交互组合：`--sandbox workspace-write --ask-for-approval on-request`。扩展权限优先用 `--add-dir`；避免直接使用 `danger-full-access`。
+
+## 7. 沙箱与安全
+
+沙箱定义 Codex 能读写哪些位置以及网络边界；审批策略决定越界时是否停下。由 `!` 触发的命令也继承这两项设置。执行删除、数据库迁移、推送远程仓库等高影响操作前，先检查命令和 diff。
+
+```bash
+git status
+git diff
+```
+
+`--yolo` 会同时关闭审批和沙箱，可能访问网络或修改工作区外文件；仅在专用、已加固的临时环境使用。优先使用 Git 分支或 worktree，并在任务前后创建 checkpoint。
+
+配置通常来自 `~/.codex/config.toml`；项目 `.codex/config.toml` 只有在项目受信任时加载，命令行 `-c` 优先级最高。不要把 `KEY`、`SECRET`、`TOKEN` 等环境变量无必要地传给 shell。
+
+## 8. 键盘快捷键
+
+- `@`：搜索工作区文件并插入路径。
+- `Up` / `Down`：恢复草稿历史；`Ctrl+R` 搜索提示历史。
+- `Ctrl+O`：复制最近完整输出。
+- `Tab`：排队下一轮提示、斜杠命令或 shell 命令。
+- `Enter`：任务运行时注入当前轮。
+- `Esc` 两次（空输入框）：编辑上一条消息并从该点分叉。
+- `Ctrl+C` 或 `/exit`：退出 CLI。
+
+Windows 桌面端：`Ctrl+Shift+P` / `Ctrl+K` 打开命令菜单，`Ctrl+,` 打开设置，`Ctrl+O` 打开文件夹，`Ctrl+J` 切换底部面板，Ctrl + 反引号键 切换集成终端；审批弹窗中 `Enter` 批准、`Esc` 拒绝。快捷键可在设置中改绑。
+
+## 9. 推荐工作流
+
+1. 进入正确项目目录，运行 `git status`。
+2. 复杂需求先 `/plan`，让 Codex 阅读代码并提出步骤。
+3. 用 `/goal` 固化目标、范围、验收标准和禁止修改的目录。
+4. 分阶段修改；中途用自然语言补充约束。
+5. 用 `! git diff`、`! npm test` 等快速检查，或使用集成终端。
+6. 用 `/review` 审查改动，修复高优先级问题。
+7. 测试通过后提交 Git；长会话使用 `/compact`。
+
+## 10. 提示词模板
+
+```text
+目标：
+项目/目录范围：
+背景：
+约束（语言、版本、禁止修改的文件）：
+验收标准：
+验证命令：
+输出要求（改动、测试、风险、后续步骤）：
+```
+
+## 11. 速查
+
+```text
+桌面端：/plan → /goal → /review → /status → /compact
+CLI：codex → /permissions → /model → /fast → ! git diff
+自动化：codex exec "..."   codex review --uncommitted   codex resume --last
+安全：--sandbox workspace-write   --ask-for-approval on-request   避免 --yolo
+```
+
+
+## 12. /goal 详解：把“继续做”变成可验收的长期目标
+
+普通消息适合一次小改动。Goal mode 适合需要多轮查看、实现、测试和修正的任务。它保存目标并继续围绕目标推进；遇到需要决定的事情仍可能暂停，原来的权限边界仍然生效。桌面端在进度栏管理目标；CLI 可以在同一会话中管理。参见 [Long-running work](https://learn.chatgpt.com/docs/long-running-work)。
+
+**建议的操作过程：**
+
+1. 如果需求还模糊，先输入 `/plan`，让 Codex 询问关键约束。
+2. 把讨论结果整理成“产物 + 范围 + 完成条件”。
+3. 输入 `/goal`，选中命令后填写目标。
+4. 查看进度；需要调整时在同一会话补充要求。
+5. 检查交付物、测试结果和剩余事项，再判断任务是否完成。
+
+下面是可自行改写的目标示例：
+
+```text
+/goal 为这个 Python 包补齐命令行入口。复用现有业务逻辑，
+保持旧 API 兼容，只修改 src/、tests/ 和 README.md。
+完成条件：新增入口可通过 --help 查看参数；错误输入返回非零退出码；
+运行相关测试并记录结果。不要发布软件包。
+```
+
+CLI 中常见操作如下，桌面端优先使用目标进度栏：
+
+```text
+/goal
+/goal pause
+/goal resume
+/goal edit
+/goal clear
+```
+
+这里的 `pause` 是暂停继续推进；`clear` 是移除目标设定。它们不代表回滚已修改的文件。需要回滚时应查看 Git diff，按文件处理。
+
+**容易写坏的目标：**“一直优化，直到最好”。“最好”没有验收标准，容易无限扩展范围。改为“修复这三个已知问题，运行指定检查，给出未解决项”更易监督。长目标执行也不等于定时任务：若需要每天固定时间执行，应另行配置 scheduled task。
+
+## 13. /fast、/model、/reasoning 分别控制什么
+
+| 你要调整的事情 | 使用方式 | 实际含义 |
+|---|---|---|
+| 换一个模型 | 桌面端 `/model`；CLI `/model` | 更换执行任务的模型 |
+| 调整思考投入 | 桌面端 `/reasoning`；CLI 通常在 `/model` 菜单中选择 | 在可用档位之间调整推理强度 |
+| 降低受支持模型的响应延迟 | `/fast` | 选择更快的服务层，会影响额度消耗 |
+
+**Fast mode 的代价需要一起看。**截至本次核对，官方说明 GPT-5.6、GPT-5.5、GPT-5.4 的 Fast 模式模型速度约为 Standard 的 1.5 倍；5.6/5.5 的 credits 消耗为 2.5 倍，5.4 为 2 倍。GPT-6 Astra 的 Fast 在可用时消耗 2.5 倍 credits。它不保证整个项目任务按相同比例提速：测试、下载、构建等步骤仍受外部环境影响。API key 登录采用 API token 计费，不能直接套用 ChatGPT credits 倍率。参见 [Speed](https://learn.chatgpt.com/docs/agent-configuration/speed)。
+
+CLI 可以明确开关和检查：
+
+```text
+/fast on
+/fast status
+/fast off
+```
+
+`/fast` 与降低推理强度是独立设置。Fast 也不等于切到 Codex-Spark；后者是单独的模型选择。新手可以先用当前默认模型，遇到复杂错误定位再调高推理强度；需要频繁短反馈时按额度情况开启 Fast。这个用法是本文的工作建议，并非所有任务的最优配置。
+
+## 14. !、终端、自然语言：一个完整例子
+
+假设你正在 CLI 中检查 Python 项目：
+
+```text
+! git status
+! python --version
+! python -m pytest tests/test_login.py -q
+```
+
+随后发一条普通消息：
+
+```text
+请解释刚才测试失败的原因，先定位到具体代码，不要立即修改。
+确认原因后给出最小修复和验证方法。
+```
+
+想自己执行确定的命令时用 `!`；想让 Codex 判断该运行什么、如何解读结果时用自然语言。在系统 PowerShell 中直接输入 `python --version`，不要加 Codex 的 `!` 前缀。在命令尚不清楚时，也可以先问“解释这条命令会做什么”。CLI 的前缀和排队行为见 [CLI 交互快捷方式](https://learn.chatgpt.com/docs/developer-commands?surface=cli#interactive-shortcuts)。
+
+**Windows 示例：**
+
+```powershell
+# 这些输入到 PowerShell / 桌面集成终端，不带 !
+Get-Location
+Get-ChildItem
+git status
+python -m pytest -q
+
+# 把文本文件作为 Codex 非交互输入
+Get-Content -Raw .\task.md | codex exec -
+```
+
+路径有空格时加引号，例如 `codex -C "C:\Projects\My App"`。路径和命令示例应按项目实际情况改写。不要假设一次 `! cd ...` 会永久改变 Codex 的项目范围；要切换项目，用新会话/项目选择器或启动参数 `-C`，再确认当前目录。
+
+桌面端的集成终端绑定当前项目或 worktree，Codex 可以读取当前终端输出；你可以先手动运行开发服务器，再让它分析报错。参见 [Integrated terminal](https://learn.chatgpt.com/docs/integrated-terminal)。
+
+## 15. 上下文、会话与文件回滚
+
+| 需求 | 推荐动作 | 需要理解的边界 |
+|---|---|---|
+| 同一个问题继续做 | 继续发消息，或恢复同一会话 | 关键约束尽量保持在同一上下文 |
+| 对话太长 | `/compact` | 压缩上下文不能代替持久项目文档 |
+| 完全换问题 | 新建会话；CLI `/new` | 新会话不等于重置代码 |
+| 比较两种方案 | `/fork`，必要时加 worktree | 分叉聊天与隔离文件是两件事 |
+| 清理会话列表 | 归档 | 归档不是删除代码 |
+| 撤回代码更改 | 先查看 diff，再按文件恢复 | 删除聊天不会自动撤销文件修改 |
+
+建议把持续重要的信息写进文件，例如 `README.md`、任务说明、测试命令与项目约束。这样即使换会话，Codex 也可以重新读取。
+
+两个 agent 并行修改项目时，为它们划分目录或使用独立 worktree。你当前“一个 agent 改主页、另一个整理笔记”的任务，可以让前者负责布局和路由，后者只产出 Markdown 内容与接入说明。
+
+## 16. AGENTS.md、Skills、MCP、Plugins 如何理解
+
+- **AGENTS.md**：面向项目的工作说明，例如目录、编码风格、验证命令和边界。适合放每次都需要知道的固定约束。`/init` 可以生成起点，再由你检查并修正。
+- **Skill**：某类任务的可复用工作流程。`$` 或技能菜单可显式调用；是否有某项技能以当前安装为准。
+- **MCP**：让 Codex 使用外部工具和数据的连接方式。`/mcp` 查看连接状态，CLI 的 `codex mcp` 管理服务器。
+- **Plugin**：可分发的扩展组合，可能包含技能、工具或连接。安装后可用能力由插件和账号授权决定。
+
+这四者分别解决“项目规矩、操作方法、工具连接、扩展分发”。不要在 AGENTS.md 里放密码，也不要把插件名称当作保证已获得外部账号权限。
+
+一个可以调整的 AGENTS.md 示例（具体命令由项目决定）：
+
+```markdown
+# 项目工作说明
+
+- 用中文解释结果；代码命名遵循现有风格。
+- 先阅读 README 和当前修改涉及的模块。
+- 只修改与本次任务相关的文件。
+- Python 测试命令：python -m pytest tests -q
+- 不直接发布、部署或推送，先展示改动与验证结果。
+- 如验证失败，报告失败命令与原因。
+```
+
+更多说明可从 [官方配置与能力导航](https://learn.chatgpt.com/docs/codex/cli) 中进入 AGENTS.md、Skills & Plugins 和 MCP 页面。
+
+## 17. 常见问题与排查顺序
+
+**输入 /goal 或 /fast 后没有这个命令。**先确认你在哪个客户端；普通 ChatGPT 网页、桌面 Codex、CLI 的菜单不完全一致。再看版本、当前模型、账号支持和管理员策略。使用 `/` 查看实际菜单，CLI 用 `codex --version` 和 `codex --help` 辅助检查。
+
+**Codex 说完成了，但程序没有通过。**要求它列出实际运行的命令、退出状态及未验证项。你可以指定“必须运行某个检查；如果环境不允许，明确写未验证”，减少结论和证据脱节。
+
+**它一直问权限。**先确认项目目录选对了，以及需要访问的目录是否包含在允许范围。用精确目录授权解决必要访问，不必因此关闭所有保护。`never` 的含义是不询问，并不自动授予越界能力。
+
+**/review 发现问题后会自动修复吗？**审查本身输出问题；需要修复时再给明确指令，并重新运行相关检查。审查可以降低遗漏概率，不能证明程序绝对没有问题。
+
+**能否关电脑后继续？**本地任务依赖本地环境可用；不要将 Goal 理解成自动迁移到云端。需要远程执行时应使用明确配置好的云端工作流。离线前暂停目标，恢复环境后再继续。
+
+**主页和笔记同时改，怎样降低冲突？**先固定 Markdown 内容路径与文章元数据；布局、样式和网站路由等由主页 agent 接入。本文配套的子页面草案就是这个交付边界。
+
+## 18. 版本说明
+
+本文根据 OpenAI 官方文档整理，核对日期为 **2026-09-12**。命令、模型和可用功能会随版本、平台、账号及特性成熟度变化；以当前 `/` 菜单、`codex --help` 和官方 CLI 参考为准。
+
+
+
