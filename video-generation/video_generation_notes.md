@@ -100,7 +100,7 @@ Genie 用时空 tokenizer 将视频离散化，LAM 从相邻帧无监督推断 l
 
 ### HunyuanVideo：Causal 3D-VAE 与 DiT
 
-![HunyuanVideo 官方架构图](assets/original/hunyuanvideo_overview.png)
+![HunyuanVideo 官方架构图](assets/original/hunyuanvideo_overall.png)
 
 HunyuanVideo 先用 causal 3D-VAE 压缩视频，再用文本编码器和 DiT 去噪；双流阶段分别处理视觉与文本，单流阶段进行全注意力融合。它解决的是开源模型的高分辨率、文本对齐和规模化训练问题。来源：[Tencent 官方架构图](https://github.com/Tencent/HunyuanVideo/blob/main/assets/hunyuanvideo.pdf)。
 
